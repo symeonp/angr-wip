@@ -28,34 +28,38 @@ def main():
     argv = [project.filename]   #argv[0]
 
     # Set up symbolic values
+    input_size = 10; 
+    sym_arg = claripy.BVS("the_integer", input_size * 8)
 
-    ### this does not work ###
-    #sym_arg_size = 40  
-    # sym_arg = claripy.BVS('sym_arg', 8*sym_arg_size)
-    # argv.append(sym_arg)    #argv[1]
-
-    ### nor this one.. ###
-
-    # Failed to attempt to represent an int number like 200
-    sym_arg = claripy.BVS(0x41414141, 32)
     argv.append(sym_arg)    #argv[1]
     argv.append("hello") # argv[2]
 
     state = project.factory.entry_state(args=argv)
-    
+    # state.libc.buf_symbolic_bytes=input_size + 20     <=== useless at this phase.
+
+
+    # If we try to add contstaints (numbers specifically) since we do know
+    # that the first argument should be numbers only, it does find some paths
+    # but throws unsat errors.
+
+    # for byte in sym_arg.chop(8):
+    #     state.add_constraints(byte >= 48) # Chars 0-9
+    #     state.add_constraints(byte <= 57)
+    #     state.add_constraints(byte != '\x00') # null
+
     path_group = project.factory.path_group(state)
+    # path_group = project.factory.path_group(save_unconstrained=True)
 
-    path_group = path_group.explore(find=0x080485b1, avoid=(0x0804854f,0x0804851f))
+    path_group = path_group.explore(find=0x084854f, avoid=(0x0804854f,0x0804851f))
 
-    # cry
-    # In [1]: print path_group
-    # <PathGroup with 2 deadended>
+    # In [1]: print path_group.deadended
+    # [<Path with 30 runs (at 0x9000060)>, <Path with 36 runs (at 0x9000060)>]
 
-    print path_group.deadended
-	#[<Path with 30 runs (at 0x9000060)>, <Path with 36 runs (at 0x9000060)>]
+    # In [2]: print path_group.deadended[0].state.se.any_str(sym_arg)
+    # here prints weird chars that break python
 
-	import IPython; IPython.embed()
-
+    # In [3]: print path_group.deadended[1].state.se.any_str(sym_arg)
+    # +999948367
 
 if __name__ == '__main__':
     print main()
